@@ -9,18 +9,18 @@ class User {
     // register user
     public function register($data) {
         // query
-        $this->db->query('INSERT INTO users(firstName, lastName, email, password) VALUES(:firstName, :lastName, :email, :password)');
+        $this->db->query('INSERT INTO users(name, email, password) VALUES(:name, :email, :password)');
         // bind values
-        $this->db->bind(':firstName', $data['firstName']);
-        $this->db->bind(':lastName', $data['lastName']);
+        $this->db->bind(':name', $data['name']);
         $this->db->bind(':email', $data['email']);
         $this->db->bind(':password', $data['password']);
         // execute 
-        if($this->db->execute()) {
-            return true;
-        }else {
-            return false;
-        }
+        $this->db->execute();
+        // if() {
+        //     return true;
+        // }else {
+        //     return false;
+        // }
     }
 
     // login user
