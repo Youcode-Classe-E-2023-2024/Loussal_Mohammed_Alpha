@@ -1,0 +1,74 @@
+name: GitHub Issue Workflow
+
+on:
+  issues:
+    types:
+      - opened
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - review_requested
+  pull_request_review:
+    types:
+      - submitted
+      - dismissed
+  push:
+    branches:
+      - main
+
+jobs:
+  manageIssueStatus:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v2
+
+    - name: Manage Issue Status
+      run: |
+        # Extract information from the GitHub context
+        ISSUE_NUMBER=$(jq --raw-output .issue.number "$GITHUB_EVENT_PATH")
+        ACTION_TYPE=$(jq --raw-output .action "$GITHUB_EVENT_PATH")
+        PULL_REQUEST_STATE=$(jq --raw-output .pull_request.state "$GITHUB_EVENT_PATH")
+        REVIEW_STATE=$(jq --raw-output .review.state "$GITHUB_EVENT_PATH")
+
+        # Define labels for each stage
+        case $ACTION_TYPE in
+          "opened")
+            LABEL="Backlog"
+            ;;
+          "synchronize")
+            LABEL="In Progress"
+            ;;
+          "review_requested")
+            LABEL="In Review"
+            ;;
+          "submitted" | "dismissed")
+            if [ "$REVIEW_STATE" == "approved" ]; then
+              LABEL="Done"
+            else
+              LABEL="In Progress"
+            fi
+            ;;
+          *)
+            LABEL=""
+            ;;
+        esac
+
+        # Add the "Ready" label when a new branch is created
+        if [ "$ACTION_TYPE" == "opened" ] && [ "$PULL_REQUEST_STATE" == "open" ]; then
+          LABEL="Ready"
+        fi
+
+        # Update the issue label if a valid label is defined
+        if [ "$LABEL" != "" ]; then
+          echo "Updating issue #$ISSUE_NUMBER to label: $LABEL"
+          curl -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/labels \
+            -d "[\"$LABEL\"]"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
